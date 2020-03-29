@@ -1,6 +1,7 @@
 import time
 
 from pybricks.ev3devices import Motor
+from pybricks.ev3devices import GyroSensor
 from pybricks.parameters import Port
 
 class Robot:
@@ -16,7 +17,7 @@ class Robot:
         self.left_motor = Motor(Port.B)
         self.right_motor = Motor(Port.C)
 
-        self.gyro = None
+        self.gyro = GyroSensor(Port.S4)
 
         self.kp = 0.01
 
@@ -80,3 +81,8 @@ class Robot:
 
         self.stop_drive_motors()    
 
+    def reset_gyro_angle(self, angle=0.):
+        self.gyro.reset_angle(angle)
+        
+    def get_gyro_angle(self):
+        return self.gyro.angle()
