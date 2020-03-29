@@ -5,6 +5,12 @@ from pybricks.parameters import Port
 
 class Robot:
 
+    """
+    This class is responsible for all basic attributes
+    and functions related to the robot hardware: specifically
+    motors and sensors.
+    """
+
     def __init__(self):
 
         self.left_motor = Motor(Port.B)
@@ -28,7 +34,7 @@ class Robot:
 
     def stop_drive_motors(self):
         self.left_motor.stop()
-        self.left_motor.stop()
+        self.right_motor.stop()
 
     def drive_straight(self, speed, target_angle):
 

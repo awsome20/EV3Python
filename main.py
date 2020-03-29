@@ -10,11 +10,8 @@ from pybricks.tools import print, wait, StopWatch
 from pybricks.robotics import DriveBase
 
 # local imports
-from robot import Robot
+from menu import menu
 
-robot = Robot()
-speed = 200.
-robot.start_drive_motors(speed)
-robot.stop_drive_motors()
+menu()
 
 
