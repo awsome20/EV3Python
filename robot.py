@@ -174,3 +174,47 @@ class Robot:
     def get_gyro_angle(self):
         "Returns the direction the gyro is currently pointing at"
         return self.gyro.angle()
+
+    def spin_right_to_angle(self, speed, target_angle):
+        "Spins robot to the right, using gyro sensor"
+
+        start_angle = self.get_gyro_angle()
+        
+        if start_angle >= target_angle:
+            print("ERROR: we cant spin right to this angle")
+            return
+
+        # how far do we have to go?
+        angle_dist = target_angle - start_angle
+
+        angle = start_angle
+        while angle < target_angle:
+            # ramp down the speed, the closer we get to our target
+            fraction_complete = (angle - start_angle)/angle_dist
+            turn_speed = max(selfmin_speed, (1 - fraction_complete)*speed)
+            self.right_motor.run(turn_speed)
+            self.left_motor.run(-turn_speed)
+
+        self.stop_drive_motors()    
+
+    def spin_left_to_angle(self, speed, target_angle):
+        "Spins robot to the right, using gyro sensor"
+
+        start_angle = self.get_gyro_angle()
+        
+        if start_angle <= target_angle:
+            print("ERROR: we cant spin left to this angle")
+            return
+
+        # how far do we have to go?
+        angle_dist = target_angle - start_angle
+
+        angle = start_angle
+        while angle > target_angle:
+            # ramp down the speed, the closer we get to our target
+            fraction_complete = (angle - start_angle)/angle_dist
+            turn_speed = max(selfmin_speed, (1 - fraction_complete)*speed)
+            self.right_motor.run(-turn_speed)
+            self.left_motor.run(turn_speed)
+
+        self.stop_drive_motors()          
