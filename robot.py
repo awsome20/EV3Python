@@ -21,8 +21,20 @@ class Robot:
 
         self.kp = 0.01
 
-    def reset_motor_angles(self, reset_left=None, reset_right=None):
+        # what is the min. speed that we can supply
+        # the run() method, and our robot still moves?
+        self.min_speed = 50.
 
+        # if we are ramping up our speed as we start from zero,
+        # then ramping down our speed to come to a stop,
+        # at what point in our journey do we want to reach
+        # our max speed, and at what point should we start
+        # slowing down?  These can also be though of as percentages.
+        self.ramp_up_ratio = .10
+        self.ramp_down_ratio = .80
+
+    def reset_motor_angles(self, reset_left=None, reset_right=None):
+        "Resets the drive motor encoders"
         left_angle = reset_left if reset_left is not None else 0.
         right_angle = reset_right if reset_right is not None else 0.
 
@@ -30,15 +42,17 @@ class Robot:
         self.right_motor.reset_angle(right_angle)
 
     def start_drive_motors(self, speed):
+        "Applies given speed to drive motors"
         self.left_motor.run(speed)
         self.right_motor.run(speed)
 
     def stop_drive_motors(self):
+        "Stops drive motors with default of brake"
         self.left_motor.stop()
         self.right_motor.stop()
 
     def drive_straight(self, speed, target_angle):
-
+        "Drives robot straigt at given speed for given rotations"
         self.reset_motor_angles()
 
         self.start_drive_motors(speed)
@@ -50,17 +64,89 @@ class Robot:
 
         self.stop_drive_motors()    
 
+    def drive_straight_with_gyro(self, speed, target_angle, ramp=True):
+        """
+        Drives robot straigt at given speed for given rotations,
+        but keeps robot straight using the gyro sensor, and includes
+        option for ramping speeds up then down again (also to help
+        robot go straight)
+        """
+        self.reset_motor_angles()
+        target_angle = self.get_gyro_angle()
+        correction = 0
+
+        # self.start_drive_motors(speed)
+
+        # if we ramp speeds, we'll need to save this
+        cruising_speed = speed
+
+        # use the left motor to track the encoder values
+        pos = self.left_motor.angle()
+
+        # keep going till we reach our given number of
+        # motor rotations
+        while pos < target_angle:
+
+            # apply optional ramping
+            if ramp:
+                # how far have come on our journey?
+                # 0: we haven't started
+                # 1: we finished
+                dist_ratio = pos / target_angle
+
+                # ramp up speed?
+                if dist_ratio < self.ramp_up_ratio:
+                    # Ex: we are 5% there, and we ramp up
+                    # our speed in the first 10% of our journey.
+                    # In that 10%, ramp up the speed from
+                    # min to max linearly.
+                    this_ratio = dist_ratio / self.ramp_up_ration
+                    speed = max(self.min_speed, speed*this_ratio)    
+
+                # ramp down speed?                    
+                elif dist_ratio > self.ramp_down_ratio:
+                    # Ex: we are 85% there, and we want to ramp
+                    # down the last 20% of our journey.
+                    # At 85%, we are 25% done ramping down already,
+                    # so we want our power to be at 75%.
+                    # this_ratio = (dist_ratio - self.ramp_down_ratio)/(100.-self.ramp_dow_ratio)
+                    this_ratio = (100 - dist_ratio)/(100.-self.ramp_down_ratio)
+                    speed = max(self.min_speed, speed*this_ratio)
+                else:
+                    # we aren't ramping up or down, but are at our 
+                    # cruising speed
+                    speed = cruising_speed
+
+            # calculate the correction, base on our error
+            angle = self.get_gyro_angle()
+            error = angle - target_error
+            correction = self.kp * error
+
+            # apply the correction to keep us going straight
+            left_speed = speed + correction
+            right_speed = speed - correction
+
+            self.left_motor.run(left_speed)
+            self.right_motor.run(right_speed)
+            
+            # have we gone far enough?
+            pos = self.left_motor.angle()
+            wait(50)
+
+        self.stop_drive_motors()
+
     def spin_right(self, speed, wheel_degrees):
+        "Spins robot right, for given rotation of motor"
         self.spin(speed, wheel_degrees, spin_right=True)
 
     def spin_left(self, speed, wheel_degrees):
+        "Spins robot left, for given rotation of motor"
         self.spin(speed, wheel_degrees, spin_right=False)
 
  
     def spin(self, speed, wheel_degrees, spin_right=True):
-
+        "Spins robot left or right, for given rotation of motor"
         self.reset_motor_angles()
-
   
         #self.start_drive_motors(speed)
         if spin_right:
@@ -82,7 +168,9 @@ class Robot:
         self.stop_drive_motors()    
 
     def reset_gyro_angle(self, angle=0.):
+        "Whatever direction the gyro is pointing at, is the given angle now"
         self.gyro.reset_angle(angle)
-        
+
     def get_gyro_angle(self):
+        "Returns the direction the gyro is currently pointing at"
         return self.gyro.angle()
