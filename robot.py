@@ -1,8 +1,116 @@
 import time
+import math
 
-from pybricks.ev3devices import Motor
-from pybricks.ev3devices import GyroSensor
-from pybricks.parameters import Port
+try:
+    from pybricks.ev3devices import Motor
+    from pybricks.ev3devices import GyroSensor
+    from pybricks.parameters import Port
+
+    portB = Port.B 
+    portC = Port.C
+    port4 = Port.S4
+
+    SIM = False
+
+except:
+    print("Could not import pybricks")
+    print("Setting up for Simulation Mode")
+
+    from ev3simDevices import SimMotor as Motor
+    from ev3simDevices import SimGyro as GyroSensor
+    portB = 'B'
+    portC = 'C'
+    port4 = 'S4'
+
+    SIM = True
+
+class RobotGyro:
+
+    """
+    This is a facade class for interacting either with
+    the ev3brick Gyro, or our simulated Gyro, 
+    which needs details about the robot to figure out
+    what angle it should be reading.
+    """
+
+    def __init__(self, left_motor, right_motor, wheel_radius, axis_radius):
+
+        self.left_motor = left_motor
+        self.right_motor = right_motor
+        self.wheel_radius = wheel_radius
+        self.axis_radius = axis_radius
+
+        # either connect to real hardware, or our dummy sim class
+        self.gyro = GyroSensor(port4)
+        self.degrees = int(0)
+
+    def reset_gyro_angle(self):
+        self.gyro.reset_angle(0)
+        self.degrees = 0
+
+    def angle(self):
+
+        if not SIM:
+            # not a simulation, so return what the hardware
+            # is reading
+            self.degrees = self.gyro.angle()
+            return self.degrees
+
+        # in simulation mode, the angle returned by the gyro sensor
+        # depends on how our sim motors are moving.
+        # If they have moved identically all the time,
+        # our sim angle will always be zero
+        left_angle = self.left_motor.angle()
+        right_angle = self.right_motor.angle()
+        
+        tol = 1.
+        angle_diff = abs(left_angle - right_angle)
+        if angle_diff < tol:
+            return int(0)
+
+        # TBF: how to compute this angle?
+        # print("Cannot compute angle", angle_diff)
+        # return None
+    
+        # we'll only compute spinnging angles: angles from
+        # two motors are close to eachother but in opposite directions
+        return self.compute_robot_spin_degrees(left_angle, right_angle)
+
+    def compute_robot_spin_degrees(self, left_angle, right_angle):
+        "Uses configuration of robot and math to figure out gyro value"
+
+        # print("compute spin degrees", left_angle, right_angle)
+        assert ((right_angle >= 0 and left_angle <= 0) or (right_angle <= 0 and left_angle >= 0))
+
+        spin_left = right_angle > 0
+        positive_wheel_degrees = right_angle if right_angle > 0 else left_angle
+
+        # how far has the wheel going forward moved?
+        # C = 2*pi*r
+        # distance wheel traveled = (radians traveled)*wheel_radius
+        # wheel_distance = self.deg2rad(positive_wheel_degrees) * self.wheel_radius
+        # print("Forward wheel has moved (inches)", wheel_distance)
+
+        # so, one wheel has gone part of circle the above distance;
+        # what angle for this zero-radius turn has it gone?
+        # C = 2*pi*r
+        # part of circle = (radians traveled on circle) * (radius of circle)
+        # robot_spin_degrees = wheel_distance / self.axis_radius
+        # print("my robot_spin_degrees: ", robot_spin_degrees)
+
+        # I keep screwing this up, so here's it explained, and simplified:
+        # https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=12&ved=2ahUKEwi8y-K0pM_oAhVAgXIEHdapC8cQFjALegQIAxAB&url=https%3A%2F%2Fsheldenrobotics.com%2Ftutorials%2FDetailed_Turning_Tutorial.pdf&usg=AOvVaw3FCQ_gyV_xrhMu2iZsDdBl
+        # Number of Degrees to Program = (Cturn) / (Cwheel) x (theta)
+        # positive_wheel_degrees = (self.axis_radius/self.wheel_radius) * robot_spin_degree
+        robot_spin_degrees = positive_wheel_degrees * (self.wheel_radius / self.axis_radius)
+
+        return robot_spin_degrees if not spin_left else -robot_spin_degrees
+
+    def deg2rad(self, degrees):
+        return degrees * (math.pi/180.)
+
+    def rad2deg(self, radians):
+        return radians * (180./math.pi)
 
 class Robot:
 
@@ -12,12 +120,26 @@ class Robot:
     motors and sensors.
     """
 
-    def __init__(self):
+    def __init__(self, sim=False):
 
-        self.left_motor = Motor(Port.B)
-        self.right_motor = Motor(Port.C)
+        # if sim:
+        #     self.left_motor = SimMotor('B')
+        #     self.right_motor = SimMotor('C')
+        # else:    
+        #     self.left_motor = Motor(Port.B)
+        #     self.right_motor = Motor(Port.C)
 
-        self.gyro = GyroSensor(Port.S4)
+        #     self.gyro = GyroSensor(Port.S4)
+     
+        self.wheel_radius = 1.0 # inches
+        self.axis_radius = 2.0 # inches
+
+        self.left_motor = Motor(portB)
+        self.right_motor = Motor(portC)
+        self.gyro = RobotGyro(self.left_motor,
+                              self.right_motor,
+                              self.wheel_radius,
+                              self.axis_radius)
 
         self.kp = 0.01
 
@@ -180,30 +302,8 @@ class Robot:
 
         start_angle = self.get_gyro_angle()
         
-        if start_angle >= target_angle:
-            print("ERROR: we cant spin right to this angle")
-            return
-
-        # how far do we have to go?
-        angle_dist = target_angle - start_angle
-
-        angle = start_angle
-        while angle < target_angle:
-            # ramp down the speed, the closer we get to our target
-            fraction_complete = (angle - start_angle)/angle_dist
-            turn_speed = max(selfmin_speed, (1 - fraction_complete)*speed)
-            self.right_motor.run(turn_speed)
-            self.left_motor.run(-turn_speed)
-
-        self.stop_drive_motors()    
-
-    def spin_left_to_angle(self, speed, target_angle):
-        "Spins robot to the right, using gyro sensor"
-
-        start_angle = self.get_gyro_angle()
-        
         if start_angle <= target_angle:
-            print("ERROR: we cant spin left to this angle")
+            print("ERROR: we cant spin right to this angle")
             return
 
         # how far do we have to go?
@@ -213,8 +313,68 @@ class Robot:
         while angle > target_angle:
             # ramp down the speed, the closer we get to our target
             fraction_complete = (angle - start_angle)/angle_dist
-            turn_speed = max(selfmin_speed, (1 - fraction_complete)*speed)
+            turn_speed = max(self.min_speed, (1 - fraction_complete)*speed)
+            self.right_motor.run(turn_speed)
+            self.left_motor.run(-turn_speed)
+            angle = self.get_gyro_angle()
+            time.sleep(0.005)
+
+        self.stop_drive_motors()    
+
+    def spin_left_to_angle(self, speed, target_angle):
+        "Spins robot to the right, using gyro sensor"
+
+        start_angle = self.get_gyro_angle()
+        
+        if start_angle >= target_angle:
+            print("ERROR: we cant spin left to this angle")
+            return
+
+        # how far do we have to go?
+        angle_dist = target_angle - start_angle
+
+        angle = start_angle
+        while angle < target_angle:
+            # ramp down the speed, the closer we get to our target
+            # fraction_complete = (angle - start_angle)/angle_dist
+            fraction_complete = 0
+            turn_speed = max(self.min_speed, (1 - fraction_complete)*speed)
             self.right_motor.run(-turn_speed)
             self.left_motor.run(turn_speed)
+            angle = self.get_gyro_angle()
+            time.sleep(0.005)
 
         self.stop_drive_motors()          
+
+# Test in simulation mode:
+
+if __name__ == '__main__':
+    
+    # robot = RobotGyro(None, None, 1., 2.)  
+    # degs = 360.*1.
+    # deg = robot.compute_robot_spin_degrees(degs, -degs)
+    # print(deg)
+    
+    robot = Robot()
+    time.sleep(2)
+    print(robot.left_motor.angle())
+    robot.start_drive_motors(100)
+    time.sleep(2)      
+    print("now left motor angle: ", robot.left_motor.angle())
+    print("gyro should be zero: ", robot.get_gyro_angle())
+    robot.reset_motor_angles()
+    print("spinng left")
+    robot.spin_left_to_angle(100, 90.)
+    print("left motor angle: ", robot.left_motor.angle())
+    print("gyro should be close to 90: ", robot.get_gyro_angle())
+
+    robot.reset_motor_angles()
+    print("spinng left")
+    robot.spin_right_to_angle(100, -90.)
+    print("left motor angle: ", robot.left_motor.angle())
+    print("gyro should be close to 90: ", robot.get_gyro_angle())
+
+    # TBF: need a release method!
+    robot.left_motor.timer_thread.cancel()
+    robot.right_motor.timer_thread.cancel()
+    print("done")
