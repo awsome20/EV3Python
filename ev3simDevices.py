@@ -4,6 +4,7 @@ Python module for simulating ev3 hardware.
 
 import threading
 import time
+import math
 
 class SimMotor:
 
@@ -21,6 +22,8 @@ class SimMotor:
         self.degrees = 0
         # speed()
         self.degrees_per_sec = 0
+
+        self.total_degrees = 0.
 
         # manage time
         now = time.time()
@@ -78,6 +81,11 @@ class SimMotor:
 
         # update the angle 
         self.degrees += delta_angle
+        self.total_degrees += delta_angle
+
+    def get_total_inches_traveled(self, wheel_radius_inches):
+        radians = (math.pi/180.) * self.total_degrees
+        return radians * wheel_radius_inches
 
     # **** begin ev3device.Motor interface
 

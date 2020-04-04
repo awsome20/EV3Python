@@ -5,6 +5,7 @@ try:
     from pybricks.ev3devices import Motor
     from pybricks.ev3devices import GyroSensor
     from pybricks.parameters import Port
+    from pybricks.tools import print, wait
 
     portB = Port.B 
     portC = Port.C
@@ -33,15 +34,19 @@ class RobotGyro:
     what angle it should be reading.
     """
 
-    def __init__(self, left_motor, right_motor, wheel_radius, axis_radius):
+    def __init__(self, port, left_motor, right_motor, wheel_radius, axis_radius, debug=False):
+
+        self.port = port
 
         self.left_motor = left_motor
         self.right_motor = right_motor
         self.wheel_radius = wheel_radius
         self.axis_radius = axis_radius
+        
+        self.debug = debug
 
         # either connect to real hardware, or our dummy sim class
-        self.gyro = GyroSensor(port4)
+        self.gyro = GyroSensor(self.port)
         self.degrees = int(0)
 
     def reset_gyro_angle(self):
@@ -79,7 +84,9 @@ class RobotGyro:
     def compute_robot_spin_degrees(self, left_angle, right_angle):
         "Uses configuration of robot and math to figure out gyro value"
 
-        # print("compute spin degrees", left_angle, right_angle)
+        if self.debug:
+            print("compute spin degrees", left_angle, right_angle)
+
         assert ((right_angle >= 0 and left_angle <= 0) or (right_angle <= 0 and left_angle >= 0))
 
         spin_left = right_angle > 0
@@ -120,23 +127,19 @@ class Robot:
     motors and sensors.
     """
 
-    def __init__(self, sim=False):
+    def __init__(self, debug=False):
 
-        # if sim:
-        #     self.left_motor = SimMotor('B')
-        #     self.right_motor = SimMotor('C')
-        # else:    
-        #     self.left_motor = Motor(Port.B)
-        #     self.right_motor = Motor(Port.C)
+        self.debug = debug
 
-        #     self.gyro = GyroSensor(Port.S4)
-     
+        # mechanical configuration    
         self.wheel_radius = 1.0 # inches
         self.axis_radius = 2.0 # inches
 
+        # wiring:
         self.left_motor = Motor(portB)
         self.right_motor = Motor(portC)
-        self.gyro = RobotGyro(self.left_motor,
+        self.gyro = RobotGyro(port4,
+                              self.left_motor,
                               self.right_motor,
                               self.wheel_radius,
                               self.axis_radius)
@@ -153,7 +156,13 @@ class Robot:
         # our max speed, and at what point should we start
         # slowing down?  These can also be though of as percentages.
         self.ramp_up_ratio = .10
-        self.ramp_down_ratio = .80
+        self.ramp_down_ratio = .70
+
+    def wait(self, msecs):
+        if SIM:
+            time.sleep(msecs/1000.) # convert to secs
+        else:
+            wait(msecs)
 
     def reset_motor_angles(self, reset_left=None, reset_right=None):
         "Resets the drive motor encoders"
@@ -186,6 +195,22 @@ class Robot:
 
         self.stop_drive_motors()    
 
+    def robot_inches_to_wheel_degrees(self, inches):
+        "Use geometry to convert how for wheel should got to how much it will turn"
+
+        # Circumfrance = 2*pi*WheelRadius
+        radians = inches / self.wheel_radius
+        return radians * (180./math.pi)
+
+    def drive_straight_inches(self, speed, inches, gyro=True, ramp=True):
+        "Drive the robot straight for given distance at given speed"
+
+        target_angle = self.robot_inches_to_wheel_degrees(inches)
+        if gyro:
+            self.drive_straight_with_gyro(speed, target_angle, ramp=ramp)
+        else:
+            self.drive_straight(speed, target_angle)
+
     def drive_straight_with_gyro(self, speed, target_angle, ramp=True):
         """
         Drives robot straigt at given speed for given rotations,
@@ -193,8 +218,12 @@ class Robot:
         option for ramping speeds up then down again (also to help
         robot go straight)
         """
+
+        if self.debug:
+            print("drive_straight_with_gyro: ", speed, target_angle, ramp)
+
         self.reset_motor_angles()
-        target_angle = self.get_gyro_angle()
+        target_gyro_angle = self.get_gyro_angle()
         correction = 0
 
         # self.start_drive_motors(speed)
@@ -204,10 +233,15 @@ class Robot:
 
         # use the left motor to track the encoder values
         pos = self.left_motor.angle()
+        if self.debug: 
+            print("wheel angle: ", pos, pos < target_angle)
 
         # keep going till we reach our given number of
         # motor rotations
         while pos < target_angle:
+
+            if self.debug:
+                print("wheel angle: ", pos)
 
             # apply optional ramping
             if ramp:
@@ -216,14 +250,20 @@ class Robot:
                 # 1: we finished
                 dist_ratio = pos / target_angle
 
+                if self.debug:
+                    print("dist_ratio:", dist_ratio)
+
                 # ramp up speed?
                 if dist_ratio < self.ramp_up_ratio:
                     # Ex: we are 5% there, and we ramp up
                     # our speed in the first 10% of our journey.
                     # In that 10%, ramp up the speed from
                     # min to max linearly.
-                    this_ratio = dist_ratio / self.ramp_up_ration
-                    speed = max(self.min_speed, speed*this_ratio)    
+                    this_ratio = dist_ratio / self.ramp_up_ratio
+                    speed = max(self.min_speed, cruising_speed*this_ratio)    
+                    
+                    if self.debug:
+                        print("ramp up this_ratio:", this_ratio)
 
                 # ramp down speed?                    
                 elif dist_ratio > self.ramp_down_ratio:
@@ -232,8 +272,12 @@ class Robot:
                     # At 85%, we are 25% done ramping down already,
                     # so we want our power to be at 75%.
                     # this_ratio = (dist_ratio - self.ramp_down_ratio)/(100.-self.ramp_dow_ratio)
-                    this_ratio = (100 - dist_ratio)/(100.-self.ramp_down_ratio)
-                    speed = max(self.min_speed, speed*this_ratio)
+                    this_ratio = (1. - dist_ratio)/(1. - self.ramp_down_ratio)
+                    speed = max(self.min_speed, cruising_speed*this_ratio)
+                              
+                    if self.debug:
+                        print("ramp down this_ratio:", this_ratio)
+
                 else:
                     # we aren't ramping up or down, but are at our 
                     # cruising speed
@@ -241,19 +285,23 @@ class Robot:
 
             # calculate the correction, base on our error
             angle = self.get_gyro_angle()
-            error = angle - target_error
+            error = angle - target_gyro_angle
             correction = self.kp * error
 
             # apply the correction to keep us going straight
             left_speed = speed + correction
             right_speed = speed - correction
 
+            if self.debug:
+                print("correction: ", correction)
+                print("speeds", left_speed, right_speed)
+
             self.left_motor.run(left_speed)
             self.right_motor.run(right_speed)
             
             # have we gone far enough?
             pos = self.left_motor.angle()
-            wait(50)
+            self.wait(50)
 
         self.stop_drive_motors()
 
@@ -300,10 +348,13 @@ class Robot:
     def spin_right_to_angle(self, speed, target_angle):
         "Spins robot to the right, using gyro sensor"
 
+        if self.debug:
+            print("spin_right_to_angle:", speed, target_angle)
+
         start_angle = self.get_gyro_angle()
         
         if start_angle <= target_angle:
-            print("ERROR: we cant spin right to this angle")
+            print("ERROR: we cant spin right to this angle", start_angle)
             return
 
         # how far do we have to go?
@@ -317,12 +368,18 @@ class Robot:
             self.right_motor.run(turn_speed)
             self.left_motor.run(-turn_speed)
             angle = self.get_gyro_angle()
-            time.sleep(0.005)
+            self.wait(50)
+            if self.debug:
+                print("turn_speed, angle: ", turn_speed, angle)
+
 
         self.stop_drive_motors()    
 
     def spin_left_to_angle(self, speed, target_angle):
         "Spins robot to the right, using gyro sensor"
+
+        if self.debug:
+            print("spin_left_to_angle:", speed, target_angle)
 
         start_angle = self.get_gyro_angle()
         
@@ -336,20 +393,27 @@ class Robot:
         angle = start_angle
         while angle < target_angle:
             # ramp down the speed, the closer we get to our target
-            # fraction_complete = (angle - start_angle)/angle_dist
-            fraction_complete = 0
+            fraction_complete = (angle - start_angle)/angle_dist
             turn_speed = max(self.min_speed, (1 - fraction_complete)*speed)
             self.right_motor.run(-turn_speed)
             self.left_motor.run(turn_speed)
             angle = self.get_gyro_angle()
-            time.sleep(0.005)
+            if self.debug:
+                print("turn_speed, angle: ", turn_speed, angle)
+            self.wait(50)
 
         self.stop_drive_motors()          
+
+    def release(self):
+        "release any resources that might not want to die"
+        if SIM:
+            self.left_motor.timer_thread.cancel()
+            self.right_motor.timer_thread.cancel()
 
 # Test in simulation mode:
 
 if __name__ == '__main__':
-    
+
     # robot = RobotGyro(None, None, 1., 2.)  
     # degs = 360.*1.
     # deg = robot.compute_robot_spin_degrees(degs, -degs)

@@ -10,8 +10,17 @@ def printMsg(msg):
     brick.display.text(msg)
     print(msg)
     
-def display_gyro_values():
+def test_drive():
 
+    r = Robot(debug=True)
+
+    inches = 5.
+    r.drive_straight_inches(200., inches)
+
+    r.spin_left_to_angle(200., 90)
+    r.spin_right_to_angle(400, -90)
+
+def display_gyro_values():
 
     print("HW reset, then btn press:")
     while not any(brick.buttons()):
