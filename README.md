@@ -4,6 +4,19 @@
 
 This is my attempt at learning EV3 MicroPython, using the 2019 FLL competition as a context: reimplementing the student's block code using Python.
 
+## Goals
+
+We would like to replicate all the functionality from the 2019 FLL season.  This includes, from the lowest level to the highest:
+
+   * Navigation: basic movement with drive motors
+   * Navigation: moving straight with the gyro sensor
+   * Navigation: spinning to exact angles with the gyro sensor
+   * Gyro testing and calibration 
+   * Launches (for solving missions)
+   * Menu program (for starting launches interactively during competition)
+
+As of this writting, this code repository has completed all of the above goals minus the actual launches for solving missions.
+   
 ## Design
 
 Place UML Here
