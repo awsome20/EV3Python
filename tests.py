@@ -14,11 +14,11 @@ def test_drive():
 
     r = Robot(debug=True)
 
-    inches = 5.
+    inches = 10.
     r.drive_straight_inches(200., inches)
 
-    r.spin_left_to_angle(200., 90)
-    r.spin_right_to_angle(400, -90)
+    # r.spin_right_to_angle(200., 90)
+    # r.spin_left_to_angle(400, -90)
 
 def display_gyro_values():
 

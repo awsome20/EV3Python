@@ -87,7 +87,7 @@ class RobotGyro:
         if self.debug:
             print("compute spin degrees", left_angle, right_angle)
 
-        assert ((right_angle >= 0 and left_angle <= 0) or (right_angle <= 0 and left_angle >= 0))
+        # assert ((right_angle >= 0 and left_angle <= 0) or (right_angle <= 0 and left_angle >= 0))
 
         spin_left = right_angle > 0
         positive_wheel_degrees = right_angle if right_angle > 0 else left_angle
@@ -144,7 +144,7 @@ class Robot:
                               self.wheel_radius,
                               self.axis_radius)
 
-        self.kp = 0.01
+        self.kp = 0.7
 
         # what is the min. speed that we can supply
         # the run() method, and our robot still moves?
@@ -234,7 +234,7 @@ class Robot:
         # use the left motor to track the encoder values
         pos = self.left_motor.angle()
         if self.debug: 
-            print("wheel angle: ", pos, pos < target_angle)
+            print("wheel angle: ", pos)
 
         # keep going till we reach our given number of
         # motor rotations
@@ -283,6 +283,9 @@ class Robot:
                     # cruising speed
                     speed = cruising_speed
 
+            if self.debug:
+                print("base speed:", speed)
+
             # calculate the correction, base on our error
             angle = self.get_gyro_angle()
             error = angle - target_gyro_angle
@@ -293,8 +296,10 @@ class Robot:
             right_speed = speed - correction
 
             if self.debug:
+                print("gyro error: ", error)
                 print("correction: ", correction)
-                print("speeds", left_speed, right_speed)
+                print("left speed:", left_speed)
+                print("right speed:", right_speed)
 
             self.left_motor.run(left_speed)
             self.right_motor.run(right_speed)
@@ -345,16 +350,16 @@ class Robot:
         "Returns the direction the gyro is currently pointing at"
         return self.gyro.angle()
 
-    def spin_right_to_angle(self, speed, target_angle):
-        "Spins robot to the right, using gyro sensor"
+    def spin_left_to_angle(self, speed, target_angle):
+        "Spins robot to the left, using gyro sensor"
 
         if self.debug:
-            print("spin_right_to_angle:", speed, target_angle)
+            print("spin_left_to_ang:", speed, target_angle)
 
         start_angle = self.get_gyro_angle()
         
         if start_angle <= target_angle:
-            print("ERROR: we cant spin right to this angle", start_angle)
+            print("ERROR: we cant spin left to this angle", start_angle, target_angle)
             return
 
         # how far do we have to go?
@@ -370,21 +375,22 @@ class Robot:
             angle = self.get_gyro_angle()
             self.wait(50)
             if self.debug:
-                print("turn_speed, angle: ", turn_speed, angle)
+                print("turn_speed: ", turn_speed)
+                print("angle: ", angle)
 
 
         self.stop_drive_motors()    
 
-    def spin_left_to_angle(self, speed, target_angle):
+    def spin_right_to_angle(self, speed, target_angle):
         "Spins robot to the right, using gyro sensor"
 
         if self.debug:
-            print("spin_left_to_angle:", speed, target_angle)
+            print("spin_right_to_ang:", speed, target_angle)
 
         start_angle = self.get_gyro_angle()
         
         if start_angle >= target_angle:
-            print("ERROR: we cant spin left to this angle")
+            print("ERROR: we cant spin right to this angle", start_angle, target_angle)
             return
 
         # how far do we have to go?
@@ -399,7 +405,8 @@ class Robot:
             self.left_motor.run(turn_speed)
             angle = self.get_gyro_angle()
             if self.debug:
-                print("turn_speed, angle: ", turn_speed, angle)
+                print("turn_speed: ", turn_speed)
+                print("angle: ", angle)
             self.wait(50)
 
         self.stop_drive_motors()          
