@@ -1,3 +1,5 @@
+#!/usr/bin/env pybricks-micropython
+
 # pybrick imports
 from pybricks import ev3brick as brick
 from pybricks.ev3devices import (Motor, TouchSensor, ColorSensor,
@@ -33,6 +35,10 @@ rightMotor.run(speed)
 # past our target angle
 while angle < targetAngle:
     angle = leftMotor.angle()
+    # here we can change the speed!
+    rampSpeed = speed
+    leftMotor.run(rampSpeed)
+    rightMotor.run(rampSpeed)
 
 # now we can stop!
 leftMotor.stop()
