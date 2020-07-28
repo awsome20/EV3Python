@@ -1,3 +1,5 @@
+#!/usr/bin/env pybricks-micropython
+
 # pybrick imports
 from pybricks import ev3brick as brick
 from pybricks.ev3devices import (Motor, TouchSensor, ColorSensor,
@@ -25,3 +27,6 @@ def displayLightValue(port):
         print("ambient: ", ambient)
         print("rgb: ", rgb)
         wait(1000)
+
+# display the light values in Port #2
+displayLightValue(Port.S2)

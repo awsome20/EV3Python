@@ -49,3 +49,6 @@ def testDisplay():
         brick.display.clear()
         brick.display.text("*", (x, y))
         wait(10)
+
+# call the function!
+testDisplay()        

@@ -38,3 +38,6 @@ def testButtons():
             if buttonPressed == Button.LEFT:
                 print("You are pressing just the LEFT button!")
         wait(1000)
+
+# call the function!
+testButtons()        
