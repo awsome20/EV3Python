@@ -51,4 +51,4 @@ def testDisplay():
         wait(10)
 
 # call the function!
-testDisplay()        
+#testDisplay()        

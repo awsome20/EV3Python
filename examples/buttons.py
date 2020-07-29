@@ -40,4 +40,4 @@ def testButtons():
         wait(1000)
 
 # call the function!
-testButtons()        
+#testButtons()        
