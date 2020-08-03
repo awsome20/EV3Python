@@ -58,20 +58,70 @@ def displayLightValue(port):
         print("rgb: ", rgb)
         wait(1000)
 
+def printMsg(msg):
+    print(msg)
+    brick.display.text(msg)
+
+def getSensorValue(sensor):
+    return sensor.reflection()
+    # return sensor.ambient()
+
 def calibrateLightSensor(port):
     sensor = ColorSensor(port)
     
     # first display values
     btns = brick.buttons()
     while len(btns) == 0:
-        r = sensor.reflection()
-        print("reflected light on port ", port, r)
-        wait(1000)
-        btns = bricks.button()
+        r = getSensorValue(sensor)
+        printMsg("value on port %d: %f" % (port, r))
+        printMsg("press any key")
+        wait(10)
+        btns = brick.buttons()
 
+    
+    printMsg("place over dark, then press any key")
+    wait(2000)
+    btns = brick.buttons()
+    while len(btns) == 0:
+        r = getSensorValue(sensor)
+        btns = brick.buttons()
 
+    low = r
+    printMsg("dark value is %f " % low)
+    printMsg("light, press any key")
+    wait(2000)
+    btns = brick.buttons()
+     
+    while len(btns) == 0:
+        r = getSensorValue(sensor)
+        btns = brick.buttons()
 
+    high = r
+    printMsg("highest value: %f" % high)
+    
+    printMsg("calibrated values:")
+    wait(2000)
+    btns = brick.buttons()
+    while len(btns) == 0:
+        r = getSensorValue(sensor)
+        c = calibrateValue(r, low, high)
+        btns = brick.buttons()
+        printMsg("calibrated value: %f " % c)
+        wait(100)
+    
+    return low, high
 
+def calibrateValue(value, low, high):
+    height = high - low
+    if height == 0:
+        return 0.
+
+    cal = (value / height) * 100.0
+    cal = max(0., cal)
+    cal = min(cal, 100.)
+
+    return cal
+    
 # display the light values in Port #2
 #port = Port.S2
 #displayLightValue(port)
