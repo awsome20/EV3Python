@@ -11,6 +11,7 @@ We would like to replicate all the functionality from the 2019 FLL season.  This
    * Navigation: basic movement with drive motors
    * Navigation: moving straight with the gyro sensor
    * Navigation: spinning to exact angles with the gyro sensor
+   * Navigation: line following and aligning along lines
    * Gyro testing and calibration 
    * Launches (for solving missions)
    * Menu program (for starting launches interactively during competition)
