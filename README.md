@@ -16,7 +16,7 @@ We would like to replicate all the functionality from the 2019 FLL season.  This
    * Launches (for solving missions)
    * Menu program (for starting launches interactively during competition)
 
-As of this writting, this code repository has completed all of the above goals minus the actual launches for solving missions.
+As of this writting, this code repository has completed almost all of the above goals minus the actual launches for solving missions.
    
 ## Design
 
